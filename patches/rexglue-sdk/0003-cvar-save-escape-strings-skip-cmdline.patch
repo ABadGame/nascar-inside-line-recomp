@@ -1,0 +1,67 @@
+diff --git a/src/core/cvar.cpp b/src/core/cvar.cpp
+index 228728d..cdd0c3e 100644
+--- a/src/core/cvar.cpp
++++ b/src/core/cvar.cpp
+@@ -535,17 +535,40 @@ std::vector<std::string> ListModifiedFlags() {
+   return result;
+ }
+ 
++namespace {
++// One "name = value" line for a saved config, or "" to leave the flag out.
++// Values that only came from the command line or the environment are not
++// persisted (a one-off --log_file must not end up in the user's config), and
++// strings are escaped - a raw Windows path such as "C:\Users\..." is invalid
++// TOML and made the whole file unreadable on the next start.
++std::string SerializeEntry(const FlagEntry& entry) {
++  if (entry.source == Source::kCommandLine || entry.source == Source::kEnvironment) {
++    return {};
++  }
++  std::string value = entry.getter();
++  if (value == entry.default_value) {
++    return {};
++  }
++  if (entry.type != FlagType::String) {
++    return entry.name + " = " + value + "\n";
++  }
++  std::string escaped;
++  escaped.reserve(value.size() + 2);
++  for (char c : value) {
++    if (c == '\\' || c == '"') {
++      escaped += '\\';
++    }
++    escaped += c;
++  }
++  return entry.name + " = \"" + escaped + "\"\n";
++}
++}  // namespace
++
+ std::string SerializeToTOML() {
+   std::lock_guard lock(GetRegistryMutex());
+   std::string result;
+   for (const auto& entry : GetRegistryStorage()) {
+-    if (entry.getter() != entry.default_value) {
+-      if (entry.type == FlagType::String) {
+-        result += entry.name + " = \"" + entry.getter() + "\"\n";
+-      } else {
+-        result += entry.name + " = " + entry.getter() + "\n";
+-      }
+-    }
++    result += SerializeEntry(entry);
+   }
+   return result;
+ }
+@@ -554,12 +577,8 @@ std::string SerializeToTOML(std::string_view category) {
+   std::lock_guard lock(GetRegistryMutex());
+   std::string result;
+   for (const auto& entry : GetRegistryStorage()) {
+-    if (entry.category == category && entry.getter() != entry.default_value) {
+-      if (entry.type == FlagType::String) {
+-        result += entry.name + " = \"" + entry.getter() + "\"\n";
+-      } else {
+-        result += entry.name + " = " + entry.getter() + "\n";
+-      }
++    if (entry.category == category) {
++      result += SerializeEntry(entry);
+     }
+   }
+   return result;

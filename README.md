@@ -20,6 +20,7 @@ graphics, audio and system calls are handled by ReXGlue's Xenia-derived runtime.
 | Audio, saves | ✅ |
 | Xbox and other controllers (SDL database), keyboard | ✅ |
 | FSR 1 upscaling + sharpening, 16× anisotropic filtering | ✅ |
+| 21:9 ultrawide (native wider view, not stretched) | ✅ menus tested; races not yet checked |
 | Internal resolution above 1× | ⚠️ runs, but renders with corruption (see Known issues) |
 | 60 FPS | ❌ not yet |
 
@@ -80,8 +81,12 @@ Edit `nascar\out\build\win-amd64-release\nascar.toml` (created on first build fr
 | `mnk_mode` | `false` to turn off keyboard input |
 | `left_stick_deadzone_percentage` | default `8.0` |
 | `fullscreen` | `true` / `false` |
+| `video_mode_width` / `video_mode_height` | `1680`×`720` = 21:9 (default), `1280`×`720` = original 16:9 |
+| `render_target_path_d3d12` | keep `"rtv"`: at non-16:9 sizes the ROV path inverts colours or crashes |
 
 Any setting can also be passed on the command line, e.g. `nascar.exe --fullscreen=false`.
+The **F4** overlay's *Save to config* rewrites this file with every non-default setting
+(comments are not kept); values passed on the command line are not saved.
 
 ## Known issues
 
@@ -107,6 +112,8 @@ Any setting can also be passed on the command line, e.g. `nascar.exe --fullscree
      next function when one falls through into another; dump function bounds after codegen.
    - `0002` — size 3D-as-2D wrapper textures with the draw resolution scale (fixes the
      "device removed" crash at 2×); forward D3D12 debug-layer messages to the log.
+   - `0003` — the settings overlay's save escapes strings and skips command-line values
+     (a saved Windows path made the whole config unreadable, so the game started black).
 5. CMake builds the recompiled code together with the runtime and the Xenos GPU plugin.
 
 ### Project layout
