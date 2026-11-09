@@ -131,3 +131,8 @@ for `find_code_ptrs.py` to read.
 
 ReXGlue SDK by Tom Clay and contributors; Xenia by Ben Vanik and the Xenia project;
 AMD FidelityFX; SDL_GameControllerDB. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+## License
+
+This project's own files are under the [BSD 3-Clause License](LICENSE). The game itself
+is not included and is not covered by it.
