@@ -155,9 +155,16 @@ function Start-Background([string]$mode, [string]$scriptText) {
     $script:logPos = 0
     $runner = Join-Path $Work "launcher-$mode.ps1"
     Set-Content $runner $scriptText -Encoding utf8
-    $script:proc = Start-Process $shell -PassThru -WindowStyle Hidden -ArgumentList @(
+    # Anything that escapes the script (a crash, an uncaught error) is caught
+    # and written to the same log; the process's raw stderr goes to a side file
+    # that is appended to the log when the process ends. Nothing is hidden.
+    $script:procErr = Join-Path $Work "launcher-$mode.stderr.txt"
+    Remove-Item $script:procErr -ErrorAction SilentlyContinue
+    $logq = $script:procLog
+    $script:proc = Start-Process $shell -PassThru -WindowStyle Hidden -RedirectStandardError $script:procErr -ArgumentList @(
         "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
-        "& '$runner' *>&1 | Out-File -FilePath '$($script:procLog)' -Encoding utf8 -Append; exit `$LASTEXITCODE")
+        "try { & '$runner' *>&1 | Out-File -FilePath '$logq' -Encoding utf8 -Append; exit `$LASTEXITCODE } " +
+        "catch { ('CRASH: ' + (`$_ | Out-String)) | Out-File -FilePath '$logq' -Encoding utf8 -Append; exit 1 }")
     $progress.Value = 0
     Update-Buttons
     $timer.Start()
@@ -187,6 +194,12 @@ $timer.Add_Tick({
     if ($script:proc -and $script:proc.HasExited) {
         $timer.Stop()
         $code = $script:proc.ExitCode
+        $errText = if (Test-Path $script:procErr) { (Get-Content $script:procErr -Raw) } else { "" }
+        if ($errText -and $errText.Trim()) {
+            Write-Log "---- error output ----"
+            Write-Log $errText
+            Add-Content $script:procLog "`r`n---- error output ----`r`n$errText" -Encoding utf8
+        }
         if ($script:mode -eq "build") {
             if ($code -eq 0) { $progress.Value = $progress.Maximum; $status.Text = "Build finished - press Play." }
             else { $status.Text = "Build failed (exit $code). The log above and the files in work\ show why." }

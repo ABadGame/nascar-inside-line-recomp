@@ -11,7 +11,10 @@ param(
     [int]$Jobs = 8           # parallel compile jobs (each can need 1-3 GB RAM)
 )
 
-$ErrorActionPreference = "Stop"
+# Not "Stop": in Windows PowerShell 5.1 that turns ANY text a program writes to
+# stderr (git progress, "not a git repository", ...) into a fatal error. Every
+# step below checks exit codes itself and stops with Fail instead.
+$ErrorActionPreference = "Continue"
 . "$PSScriptRoot\tools\common.ps1"
 $r = $PSScriptRoot
 $logs = "$r\work"
@@ -26,6 +29,15 @@ $Expected = @{
 
 function Step([string]$Text) { Write-Host "`n== $Text" -ForegroundColor Cyan }
 function Fail([string]$Text) { Write-Host "`nERROR: $Text" -ForegroundColor Red; exit 1 }
+
+# Run a program, show its stdout+stderr as plain indented log lines (5.1 would
+# otherwise print stderr as red "NativeCommandError" records), return its exit code.
+function Run([string]$Exe, [string[]]$ArgList, [switch]$Quiet) {
+    $ErrorActionPreference = "Continue"
+    if ($Quiet) { & $Exe @ArgList *> $null }
+    else { & $Exe @ArgList 2>&1 | ForEach-Object { Write-Host "  $_" } }
+    return $LASTEXITCODE
+}
 
 # --- 1. Tools ----------------------------------------------------------------
 Step "Checking required tools"
@@ -43,33 +55,41 @@ Step "Fetching the ReXGlue SDK and applying this project's patches"
 $sdk = "$r\tools\rexglue-sdk"
 $SdkUrl = "https://github.com/rexglue/rexglue-sdk.git"
 $SdkCommit = "546a082a4356173635f6c40510a41ff53e518b5a"   # must match the submodule pin
-git -C $r rev-parse --is-inside-work-tree *> $null
-if ($LASTEXITCODE -eq 0) {
+if (Test-Path "$r\.git") {
     # Cloned with git: use the submodule.
-    git -C $r -c core.longpaths=true submodule update --init --recursive tools/rexglue-sdk
-    if ($LASTEXITCODE) { Fail "git submodule update failed" }
+    Write-Host "  git checkout - updating the tools/rexglue-sdk submodule"
+    if (Run git @("-C", $r, "-c", "core.longpaths=true", "submodule", "update", "--init", "--recursive", "tools/rexglue-sdk")) {
+        Fail "git submodule update failed (see the lines above)"
+    }
 } elseif (-not (Test-Path "$sdk\CMakeLists.txt")) {
     # Downloaded as a ZIP (no .git): clone the SDK at the pinned commit.
+    Write-Host "  ZIP download - cloning the ReXGlue SDK (a few hundred MB)"
     Remove-Item $sdk -Recurse -Force -ErrorAction SilentlyContinue
-    git -c core.longpaths=true clone $SdkUrl $sdk
-    if ($LASTEXITCODE) { Fail "could not clone the ReXGlue SDK" }
-    git -C $sdk -c core.longpaths=true checkout --quiet $SdkCommit
-    if ($LASTEXITCODE) { Fail "could not check out ReXGlue commit $SdkCommit" }
-    git -C $sdk -c core.longpaths=true submodule update --init --recursive
-    if ($LASTEXITCODE) { Fail "could not fetch the SDK's own submodules" }
+    if (Run git @("-c", "core.longpaths=true", "clone", "--progress", $SdkUrl, $sdk)) {
+        Fail "could not clone the ReXGlue SDK from $SdkUrl (check your internet connection; see the lines above)"
+    }
+    if (Run git @("-C", $sdk, "-c", "core.longpaths=true", "checkout", "--quiet", $SdkCommit)) {
+        Fail "could not check out ReXGlue commit $SdkCommit"
+    }
+    if (Run git @("-C", $sdk, "-c", "core.longpaths=true", "submodule", "update", "--init", "--recursive")) {
+        Fail "could not fetch the SDK's own submodules (see the lines above)"
+    }
 }
 foreach ($p in Get-ChildItem "$r\patches\rexglue-sdk\*.patch" | Sort-Object Name) {
-    git -C $sdk apply --check -R --whitespace=nowarn $p.FullName 2>$null
-    if ($LASTEXITCODE -eq 0) { Write-Host "  already applied: $($p.Name)"; continue }
-    git -C $sdk apply --whitespace=nowarn $p.FullName
-    if ($LASTEXITCODE) { Fail "could not apply $($p.Name) - is tools/rexglue-sdk at the pinned commit?" }
+    if ((Run git @("-C", $sdk, "apply", "--check", "-R", "--whitespace=nowarn", $p.FullName) -Quiet) -eq 0) {
+        Write-Host "  already applied: $($p.Name)"; continue
+    }
+    if (Run git @("-C", $sdk, "apply", "--whitespace=nowarn", $p.FullName)) {
+        Fail "could not apply $($p.Name) - is tools/rexglue-sdk at the pinned commit?"
+    }
     Write-Host "  applied: $($p.Name)"
 }
 
 # --- 3. Game files -----------------------------------------------------------
 Step "Extracting game files from the ISO (about 2.4 GB)"
-python -I "$r\tools\extract_iso.py" $Iso "$r\game"
-if ($LASTEXITCODE) { Fail "ISO extraction failed (is it an Xbox 360 XGD2 image?)" }
+if (Run python @("-I", "$r\tools\extract_iso.py", $Iso, "$r\game")) {
+    Fail "ISO extraction failed (is it an Xbox 360 XGD2 image?)"
+}
 
 Step "Verifying the game executables"
 foreach ($name in $Expected.Keys) {
