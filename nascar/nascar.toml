@@ -16,11 +16,12 @@ gpu_allow_invalid_fetch_constants = true
 # --- Widescreen ------------------------------------------------------------
 # The game sizes its frame from the display mode the console reports, so
 # reporting a 21:9 mode makes it render a genuinely wider view (no stretching).
-#   1280 x 720 = 16:9 (original)   1680 x 720 = 21:9 ultrawide
-video_mode_width = 1680
+#   1280 x 720 = 16:9 (original, default)   1680 x 720 = 21:9 ultrawide
+# To enable ultrawide, change 1280 to 1680 and restart the game.
+video_mode_width = 1280
 video_mode_height = 720
-# Required at non-16:9 sizes: the default framebuffer method (ROV) inverts the
-# colours or crashes there; the RTV method renders correctly.
+# Keep this: at non-16:9 sizes the default framebuffer method (ROV) inverts the
+# colours or crashes; RTV renders correctly at every size.
 render_target_path_d3d12 = "rtv"
 
 # --- Image quality ---------------------------------------------------------
