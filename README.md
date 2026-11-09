@@ -19,6 +19,7 @@ graphics, audio and system calls are handled by ReXGlue's Xenia-derived runtime.
 | Boots, menus, intro videos, races | ✅ |
 | Audio, saves | ✅ |
 | Xbox and other controllers (SDL database), keyboard | ✅ |
+| Steering wheels (via Wheel setup) | ✅ mapping tested; not yet with a real wheel in a race · no force feedback |
 | FSR 1 upscaling + sharpening, 16× anisotropic filtering | ✅ |
 | 21:9 ultrawide (native wider view, not stretched) | ✅ optional, off by default; menus tested, races not yet checked |
 | Internal resolution above 1× | ⚠️ runs, but renders with corruption (see Known issues) |
@@ -34,9 +35,23 @@ update. Setup checks the executables and stops if your copy is a different versi
 - [Visual Studio 2022 or newer](https://visualstudio.microsoft.com/) with
   **Desktop development with C++** and **C++ Clang tools for Windows** (Clang 20+)
 - [CMake](https://cmake.org/) 3.25+, [Ninja](https://ninja-build.org/), [Git](https://git-scm.com/),
-  [Python](https://www.python.org/) 3.10+, PowerShell 7 (`pwsh`)
+  [Python](https://www.python.org/) 3.10+
+
+The launcher checks all of these and can install missing ones for you with `winget`.
 
 ## Build
+
+### With the launcher (recommended)
+
+1. Download this repository: **Code → Download ZIP** and extract it, or `git clone` it.
+2. Double-click **`Launcher.bat`**.
+3. Click **Browse…** and choose your game ISO.
+4. If anything in the list says **MISSING**, click **Install missing**. Visual Studio Build
+   Tools is a large download, and Windows may ask for administrator permission.
+5. Click **Build** and leave it running. The log shows each step.
+6. Click **Play**.
+
+### From the command line
 
 ```powershell
 git clone --recursive <this repository>
@@ -44,11 +59,12 @@ cd <repository folder>
 pwsh .\setup.ps1 -Iso "D:\path\to\NASCAR the Game - Inside Line (USA).iso"
 ```
 
-The first build takes about an hour: roughly 25 minutes to recompile the game code and
-30+ minutes to compile it. It downloads AMD FidelityFX (about 260 MB) once. Options:
-`-KeepIntros` keeps the startup videos, and `-Jobs 4` lowers memory use while compiling.
-
 Then start the game with **`Play.bat`**.
+
+The first build takes about an hour: roughly 25 minutes to recompile the game code and
+30+ minutes to compile it. It downloads AMD FidelityFX (about 260 MB) once, and the
+ReXGlue SDK too if you downloaded a ZIP. Options: `-KeepIntros` keeps the startup videos,
+and `-Jobs 4` lowers memory use while compiling.
 
 ## Controls
 
@@ -67,6 +83,19 @@ Xbox controllers work out of the box; other pads use the bundled SDL controller 
 | I J K L | Camera / look |
 
 **F3** debug overlay (FPS) · **F4** settings · **F7** achievements
+
+### Steering wheels
+
+Open **`Launcher.bat`** and click **Wheel setup**, then follow the steps: turn the wheel
+left, press the gas, press the brake, and press the buttons you want for A, B, Start and so
+on (each button can be skipped). The wheel then works as a controller in the game:
+steering on the left stick, pedals on the triggers. The game sees it as an Xbox 360 wheel
+if SDL recognises it as one.
+
+The setup is saved to `nascar\out\build\win-amd64-release\gamecontrollerdb.user.txt`,
+which the game loads after the bundled controller database. Run Wheel setup again to
+change it. Wheels that already show up as an Xbox controller (many Logitech and
+Thrustmaster models in Xbox mode) work without setup. Force feedback is not supported yet.
 
 ## Settings
 
@@ -115,6 +144,8 @@ The **F4** overlay's *Save to config* rewrites this file with every non-default 
    - `0003` — the settings overlay's save escapes strings and skips command-line values
      (a saved Windows path made the whole config unreadable, so the game started black).
    - `0004` — `rexglue extract-icon`: writes a XEX's title icon (XDBF image) to a PNG.
+   - `0005` — also load `gamecontrollerdb.user.txt` (`hid_user_mappings_file`) after the
+     bundled controller database, for mappings made by Wheel setup.
 6. `setup.ps1` extracts the title icon from **your** `default.xex` and embeds it in
    `nascar.exe`, so Explorer and the taskbar show the game's real icon. The icon is never
    stored in this repository.
@@ -123,10 +154,12 @@ The **F4** overlay's *Save to config* rewrites this file with every non-default 
 ### Project layout
 
 ```
-setup.ps1, Play.bat        build from an ISO / start the game
+Launcher.bat               build/play window, prerequisite installer, wheel setup
+setup.ps1, Play.bat        build from an ISO / start the game (command line)
 nascar/                    ReXGlue project: manifest, fixups, app code, settings
 patches/rexglue-sdk/       changes applied to the pinned SDK submodule
-tools/                     extraction, analysis and test scripts
+tools/                     launcher, wheel setup, extraction, analysis and test scripts
+tools/wheel_probe/         reads joysticks through the game's SDL for Wheel setup
 tools/rexglue-sdk/         ReXGlue SDK (git submodule)
 ```
 

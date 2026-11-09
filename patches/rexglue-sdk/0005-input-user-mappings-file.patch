@@ -1,0 +1,34 @@
+diff --git a/src/input/sdl/sdl_input_driver.cpp b/src/input/sdl/sdl_input_driver.cpp
+index 57f65c4..e8d9a29 100644
+--- a/src/input/sdl/sdl_input_driver.cpp
++++ b/src/input/sdl/sdl_input_driver.cpp
+@@ -25,6 +25,9 @@
+ 
+ REXCVAR_DEFINE_STRING(hid_mappings_file, "gamecontrollerdb.txt", "Input",
+                       "Path to SDL gamecontroller mappings file");
++REXCVAR_DEFINE_STRING(hid_user_mappings_file, "gamecontrollerdb.user.txt", "Input",
++                      "Extra SDL mappings loaded after hid_mappings_file (e.g. wheels set up by "
++                      "the user); entries here override the bundled database");
+ 
+ namespace rex::input::sdl {
+ 
+@@ -235,6 +238,19 @@ void SDLInputDriver::OnWindowAvailable(rex::ui::Window* window) {
+           }
+         }
+       }
++      // User mappings (optional, loaded last so they win over the bundled DB).
++      if (!REXCVAR_GET(hid_user_mappings_file).empty() &&
++          std::filesystem::exists(REXCVAR_GET(hid_user_mappings_file))) {
++        auto user_result =
++            SDL_AddGamepadMappingsFromFile(REXCVAR_GET(hid_user_mappings_file).c_str());
++        if (user_result < 0) {
++          REXLOG_ERROR("SDL user mappings: error loading '{}': {}.",
++                       REXCVAR_GET(hid_user_mappings_file), SDL_GetError());
++        } else {
++          REXLOG_INFO("SDL user mappings: loaded {} from '{}'.", user_result,
++                      REXCVAR_GET(hid_user_mappings_file));
++        }
++      }
+       REXLOG_INFO("SDL input driver initialized successfully");
+     });
+   }

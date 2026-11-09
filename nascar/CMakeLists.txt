@@ -50,6 +50,13 @@ add_custom_target(nascar_stage_gpu_plugin ALL
     DEPENDS rexgpu-xenos nascar
     VERBATIM)
 
+# wheel_probe: console tool the launcher's wheel wizard uses to read joysticks
+# through the same SDL build (and default hints) as the game, so the GUIDs and
+# axis numbers it reports match what the game sees.
+add_executable(wheel_probe ../tools/wheel_probe/main.cpp)
+target_link_libraries(wheel_probe PRIVATE SDL3::SDL3)
+target_compile_features(wheel_probe PRIVATE cxx_std_20)
+
 # Runtime settings (nascar.toml) next to the exe. Copied only when missing so
 # changes made from the in-game settings dialog are not overwritten by a rebuild.
 add_custom_command(TARGET nascar POST_BUILD

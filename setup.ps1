@@ -40,9 +40,24 @@ Write-Host "  ok"
 
 # --- 2. SDK ------------------------------------------------------------------
 Step "Fetching the ReXGlue SDK and applying this project's patches"
-git -C $r submodule update --init --recursive tools/rexglue-sdk
-if ($LASTEXITCODE) { Fail "git submodule update failed" }
 $sdk = "$r\tools\rexglue-sdk"
+$SdkUrl = "https://github.com/rexglue/rexglue-sdk.git"
+$SdkCommit = "546a082a4356173635f6c40510a41ff53e518b5a"   # must match the submodule pin
+git -C $r rev-parse --is-inside-work-tree *> $null
+if ($LASTEXITCODE -eq 0) {
+    # Cloned with git: use the submodule.
+    git -C $r -c core.longpaths=true submodule update --init --recursive tools/rexglue-sdk
+    if ($LASTEXITCODE) { Fail "git submodule update failed" }
+} elseif (-not (Test-Path "$sdk\CMakeLists.txt")) {
+    # Downloaded as a ZIP (no .git): clone the SDK at the pinned commit.
+    Remove-Item $sdk -Recurse -Force -ErrorAction SilentlyContinue
+    git -c core.longpaths=true clone $SdkUrl $sdk
+    if ($LASTEXITCODE) { Fail "could not clone the ReXGlue SDK" }
+    git -C $sdk -c core.longpaths=true checkout --quiet $SdkCommit
+    if ($LASTEXITCODE) { Fail "could not check out ReXGlue commit $SdkCommit" }
+    git -C $sdk -c core.longpaths=true submodule update --init --recursive
+    if ($LASTEXITCODE) { Fail "could not fetch the SDK's own submodules" }
+}
 foreach ($p in Get-ChildItem "$r\patches\rexglue-sdk\*.patch" | Sort-Object Name) {
     git -C $sdk apply --check -R --whitespace=nowarn $p.FullName 2>$null
     if ($LASTEXITCODE -eq 0) { Write-Host "  already applied: $($p.Name)"; continue }
