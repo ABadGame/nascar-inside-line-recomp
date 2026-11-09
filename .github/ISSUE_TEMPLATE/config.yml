@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Looking for a download?
+    url: https://github.com/ABadGame/nascar-inside-line-recomp#build
+    about: No builds or game files are provided. You build it from your own copy of the game with setup.ps1 - see the README.

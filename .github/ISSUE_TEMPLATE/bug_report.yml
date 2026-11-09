@@ -1,0 +1,73 @@
+name: Bug report
+description: Something broke while building or playing
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing! Please **do not attach or link game files, ISOs, extracted
+        data, generated C++ or built executables** - issues containing them will be
+        deleted. Logs and screenshots are fine.
+
+  - type: dropdown
+    id: stage
+    attributes:
+      label: Where did it go wrong?
+      options:
+        - setup.ps1 (building)
+        - Game won't start / black screen
+        - Crash while playing
+        - Graphics problem
+        - Audio problem
+        - Controller / keyboard
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead. Which menu, track or race mode?
+    validations:
+      required: true
+
+  - type: input
+    id: gpu
+    attributes:
+      label: GPU and driver version
+      placeholder: e.g. AMD Radeon RX 9060 XT, Adrenalin 26.10.1
+    validations:
+      required: true
+
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      placeholder: e.g. Windows 11 24H2
+
+  - type: textarea
+    id: settings
+    attributes:
+      label: Changed settings
+      description: Anything you changed in nascar.toml or the F4 overlay (resolution_scale, video_mode_width, present_effect, ...).
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: |
+        Build problems: the matching file from `work\` (setup-*.log).
+        Game problems: the newest file in `nascar\out\build\win-amd64-release\logs\`.
+        Drag the file in, or paste the last ~50 lines.
+      render: text
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I built this myself with setup.ps1 from my own copy of the game.
+          required: true
+        - label: This issue contains no game files or built executables.
+          required: true
