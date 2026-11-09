@@ -89,6 +89,16 @@ $cg = $LASTEXITCODE
 Pop-Location
 if ($cg) { Fail "codegen failed - see work\setup-codegen.log" }
 
+Step "Extracting the game's title icon for nascar.exe"
+# Taken from YOUR default.xex into nascar\generated\icon\ (git-ignored); optional.
+$iconDir = "$r\nascar\generated\icon"
+& "$sdk\out\win-amd64\Release\rexglue.exe" extract-icon "$r\game\default.xex" "$iconDir\title.png" *> "$logs\setup-icon.log"
+if ($LASTEXITCODE -eq 0) {
+    python -I "$r\tools\png_to_ico.py" "$iconDir\title.png" "$iconDir\nascar.ico" "$iconDir\nascar.rc"
+} else {
+    Write-Host "  no icon extracted (see work\setup-icon.log) - building without it"
+}
+
 # --- 5. Build ----------------------------------------------------------------
 Step "Compiling nascar.exe (30-60 minutes; downloads AMD FidelityFX on first run)"
 Push-Location "$r\nascar"

@@ -1,0 +1,71 @@
+diff --git a/src/rexglue/commands/init_command.cpp b/src/rexglue/commands/init_command.cpp
+index cb82062..bb3a356 100644
+--- a/src/rexglue/commands/init_command.cpp
++++ b/src/rexglue/commands/init_command.cpp
+@@ -560,6 +560,49 @@ struct InitAchievementsArgs {
+ 
+ }  // namespace
+ 
++// Write the title icon (XDBF image 0x8000, a PNG) from a XEX to a file, so a
++// project can embed the user's own game icon into its executable at build time.
++Result<void> InitIcon(const std::string& xex_path_in, const std::string& out_path_in) {
++  std::error_code ec;
++  fs::path xexPath = fs::absolute(xex_path_in, ec);
++  if (ec || !fs::exists(xexPath)) {
++    return Err<void>(ErrorCategory::IO, "XEX not found: " + xex_path_in);
++  }
++  xexPath = fs::canonical(xexPath, ec);
++  fs::path outPath = fs::absolute(out_path_in, ec);
++  fs::create_directories(outPath.parent_path(), ec);
++
++  auto runtime = std::make_unique<rex::Runtime>(xexPath.parent_path().string());
++  auto rtStatus = runtime->Setup(rex::RuntimeConfig{
++      .kernel_init = rex::kernel::InitializeKernel,
++      .tool_mode = true,
++  });
++  if (!XSUCCEEDED(rtStatus)) {
++    return Err<void>(ErrorCategory::IO, fmt::format("Runtime init failed: {:#x}", rtStatus));
++  }
++  rtStatus = runtime->LoadXexImage("game:\\" + xexPath.filename().string());
++  if (!XSUCCEEDED(rtStatus)) {
++    return Err<void>(ErrorCategory::IO,
++                     fmt::format("Failed to load XEX '{}': {:#x}", xex_path_in, rtStatus));
++  }
++
++  const rex::system::util::XdbfGameData db = runtime->kernel_state()->title_xdbf();
++  if (!db.is_valid()) {
++    return Err<void>(ErrorCategory::IO, "No XDBF resource found in XEX");
++  }
++  const auto icon = db.icon();
++  if (!icon || icon.size < 8) {
++    return Err<void>(ErrorCategory::IO, "XEX has no title icon");
++  }
++  std::ofstream out(outPath, std::ios::binary);
++  if (!out) {
++    return Err<void>(ErrorCategory::IO, "Cannot write " + outPath.string());
++  }
++  out.write(reinterpret_cast<const char*>(icon.buffer), std::streamsize(icon.size));
++  REXLOG_INFO("Wrote title icon ({} bytes) to {}", icon.size, outPath.string());
++  return Ok();
++}
++
+ void RegisterInit(CLI::App& parent, const CliContext& ctx, DeferredAction& pending) {
+   auto* init = parent.add_subcommand("init", "Initialize a new project")->fallthrough();
+   auto args = std::make_shared<InitArgs>();
+@@ -637,6 +680,16 @@ void RegisterInit(CLI::App& parent, const CliContext& ctx, DeferredAction& pendi
+       return InitAchievements(opts, ctx);
+     };
+   });
++
++  // Top-level, not under `init`: init's required options would be demanded here too.
++  auto* icon = parent.add_subcommand("extract-icon", "Extract the title icon (PNG) from a XEX")
++                   ->fallthrough();
++  auto iconArgs = std::make_shared<std::pair<std::string, std::string>>();
++  icon->add_option("xex_path", iconArgs->first, "Path to the XEX binary")->required();
++  icon->add_option("output_png", iconArgs->second, "Where to write the PNG")->required();
++  icon->callback([iconArgs, &pending]() {
++    pending = [iconArgs]() -> Result<void> { return InitIcon(iconArgs->first, iconArgs->second); };
++  });
+ }
+ 
+ }  // namespace rexglue::cli

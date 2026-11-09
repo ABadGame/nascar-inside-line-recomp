@@ -114,6 +114,10 @@ The **F4** overlay's *Save to config* rewrites this file with every non-default 
      "device removed" crash at 2×); forward D3D12 debug-layer messages to the log.
    - `0003` — the settings overlay's save escapes strings and skips command-line values
      (a saved Windows path made the whole config unreadable, so the game started black).
+   - `0004` — `rexglue extract-icon`: writes a XEX's title icon (XDBF image) to a PNG.
+6. `setup.ps1` extracts the title icon from **your** `default.xex` and embeds it in
+   `nascar.exe`, so Explorer and the taskbar show the game's real icon. The icon is never
+   stored in this repository.
 5. CMake builds the recompiled code together with the runtime and the Xenos GPU plugin.
 
 ### Project layout

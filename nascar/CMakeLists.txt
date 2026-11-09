@@ -21,6 +21,17 @@ set(NASCAR_SOURCES
     src/main.cpp
 )
 
+# Exe icon: setup.ps1 extracts the title icon from the user's own default.xex
+# into generated/icon/ (git-ignored - never committed). Skipped if absent.
+set(NASCAR_ICON_RC "${CMAKE_CURRENT_SOURCE_DIR}/generated/icon/nascar.rc")
+if(WIN32 AND EXISTS "${NASCAR_ICON_RC}")
+    enable_language(RC)
+    list(APPEND NASCAR_SOURCES "${NASCAR_ICON_RC}")
+    set_source_files_properties("${NASCAR_ICON_RC}" PROPERTIES
+        OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/generated/icon/nascar.ico")
+    message(STATUS "nascar: embedding title icon from generated/icon/")
+endif()
+
 if(WIN32)
     add_executable(nascar WIN32 ${NASCAR_SOURCES})
 else()
