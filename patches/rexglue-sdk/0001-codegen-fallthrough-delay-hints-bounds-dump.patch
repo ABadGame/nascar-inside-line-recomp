@@ -1,0 +1,90 @@
+diff --git a/src/codegen/codegen_writer.cpp b/src/codegen/codegen_writer.cpp
+index a0484fb..c98a05c 100644
+--- a/src/codegen/codegen_writer.cpp
++++ b/src/codegen/codegen_writer.cpp
+@@ -20,6 +20,7 @@
+ #include <unordered_set>
+ 
+ #include <fmt/format.h>
++#include <fstream>
+ #include <inja/inja.hpp>
+ 
+ #include <rex/codegen/function_graph.h>
+@@ -192,6 +193,18 @@ bool CodegenWriter::write(bool force) {
+   std::sort(functions.begin(), functions.end(),
+             [](const auto* a, const auto* b) { return a->base() < b->base(); });
+ 
++  // Diagnostic: dump final function bounds + authority next to the output dir
++  // (<out_directory_path>.bounds.txt) so tooling can see real spans and which
++  // functions came from config vs. analysis. One line: "base end authority".
++  {
++    auto boundsPath = ctx_.configDir() / (config().outDirectoryPath + ".bounds.txt");
++    std::ofstream bounds(boundsPath, std::ios::binary);
++    for (const auto* fn : functions) {
++      bounds << fmt::format("{:08X} {:08X} {}\n", fn->base(), fn->end(),
++                            static_cast<int>(fn->authority()));
++    }
++  }
++
+   // Build rexcrt reverse map and rename graph nodes
+   std::unordered_map<uint32_t, std::string> rexcrtByAddr;
+   for (const auto& [name, addr] : config().rexcrtFunctions) {
+diff --git a/src/codegen/function_graph.cpp b/src/codegen/function_graph.cpp
+index fc918bb..e818175 100644
+--- a/src/codegen/function_graph.cpp
++++ b/src/codegen/function_graph.cpp
+@@ -496,6 +496,8 @@ std::string FunctionNode::emitCpp(const EmitContext& ctx) const {
+ 
+   ppc_insn insn;
+   std::unordered_set<size_t> emittedLabels;
++  int lastInsnId = -1;        // last emitted instruction, for fallthrough detection
++  uint32_t lastInsnAddr = 0;
+ 
+   for (const auto& block : blocks()) {
+     auto blockBase = block.base;
+@@ -591,6 +593,8 @@ std::string FunctionNode::emitCpp(const EmitContext& ctx) const {
+           REXCODEGEN_WARN("Unrecognized instruction at 0x{:X}: {}", blockBase, insn.opcode->name);
+           allRecompiled = false;
+         }
++        lastInsnId = id;
++        lastInsnAddr = static_cast<uint32_t>(blockBase);
+ 
+         // Check for mid-asm hook AFTER instruction
+         if (hookIt != ctx.config.midAsmHooks.end() && hookIt->second.afterInstruction) {
+@@ -603,6 +607,22 @@ std::string FunctionNode::emitCpp(const EmitContext& ctx) const {
+     }
+   }
+ 
++  // --- Fallthrough into the next function ---
++  // Compilers tail-merge: a leaf can end without a terminator and run straight
++  // into another function's entry (e.g. a shared "return 0" tail). Falling off
++  // the end of the C++ function would return instead, so tail-call the next entry.
++  if (lastInsnId != -1 && lastInsnId != PPC_INST_B && lastInsnId != PPC_INST_BLR &&
++      lastInsnId != PPC_INST_BCTR) {
++    const uint32_t next = lastInsnAddr + 4;
++    if (const auto* nextFn = ctx.graph.getFunction(next)) {
++      auto nextName = nextFn->name().empty() ? fmt::format("sub_{:08X}", next) : nextFn->name();
++      ctx.reference(nextName);
++      emit_println(body, "\t// fallthrough into next function");
++      emit_println(body, "\t{}(ctx, base);", nextName);
++      emit_println(body, "\treturn;");
++    }
++  }
++
+   // --- Close function body (or SEH try block) ---
+   bool generateSeh = sehInfo && !sehInfo->scopes.empty() && ctx.config.generateExceptionHandlers;
+   if (generateSeh) {
+diff --git a/src/codegen/instruction_dispatch.cpp b/src/codegen/instruction_dispatch.cpp
+index 40ae269..57429ee 100644
+--- a/src/codegen/instruction_dispatch.cpp
++++ b/src/codegen/instruction_dispatch.cpp
+@@ -319,6 +319,9 @@ static const std::unordered_map<int, Builder>& GetDispatchTable() {
+       {PPC_INST_SYNC, build_sync},
+       {PPC_INST_LWSYNC, build_lwsync},
+       {PPC_INST_EIEIO, build_eieio},
++      {PPC_INST_DB8CYC, build_db16cyc},   // or r28,r28,r28: delay hint, no-op
++      {PPC_INST_DB10CYC, build_db16cyc},  // or r29,r29,r29
++      {PPC_INST_DB12CYC, build_db16cyc},  // or r30,r30,r30
+       {PPC_INST_DB16CYC, build_db16cyc},
+       {PPC_INST_CCTPL, build_cctpl},
+       {PPC_INST_CCTPM, build_cctpm},

@@ -1,0 +1,4 @@
+# extras.xex: code with no .pdata that ReXGlue left outside any function.
+
+[functions]
+"0x88012A30" = { size = 0x530 }  # hand-written copy routines (memcpy-style) up to __savegprlr_14 at 0x88012F60; b from 0x88012F5C loops back to 0x88012F0C

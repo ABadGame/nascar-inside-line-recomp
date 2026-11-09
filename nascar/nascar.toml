@@ -1,0 +1,63 @@
+# Runtime settings for nascar.exe. CMake copies this next to the exe on every
+# build (only if the copy there is missing, so in-game settings changes stick).
+# Any of these can still be overridden on the command line, e.g. --fullscreen=false.
+
+# Game and update folders are set in src/nascar_app.h (OnConfigurePaths):
+# ReXApp resolves them before reading this file.
+
+# Graphics: Xenos GPU emulation via D3D12.
+gpu_plugin = "xenos"
+
+# This game binds textures whose fetch constant has type 0 ("invalid") and relies
+# on the real GPU ignoring that field. Without this, the intro video and most of
+# the screen render black.
+gpu_allow_invalid_fetch_constants = true
+
+# --- Image quality ---------------------------------------------------------
+# Internal render scale: 1 = native 1280x720, 2 = 2560x1440, 3 = 3840x2160.
+# 2 and 3 no longer crash (3D-as-2D sizing fix in the SDK), but they still render
+# with corruption: screen-aligned rectangles of flat cyan plus small white blocks
+# (render-to-texture copies missing at 2x). Stay at 1 until that is fixed.
+resolution_scale = 1
+# Texture sharpness at angles (track surface): 5 = 16x, 4 = 8x, 3 = 4x (default).
+anisotropic_override = 5
+# Output upscaling (needs the FidelityFX build, REXGLUE_ENABLE_FIDELITYFX=ON):
+#   "fsr"      = AMD FSR 1: edge-aware upscale of the 720p image to the window + sharpen
+#   "cas"      = AMD CAS: contrast-adaptive sharpen only
+#   "bilinear" = plain stretch (original look)
+present_effect = "fsr"
+# FSR sharpening: 0.0 = sharpest, 0.2 = default, 2.0 = softest.
+present_fsr_sharpness_reduction = 0.2
+
+# --- Controllers -----------------------------------------------------------
+# SDL controller database (next to the exe) so non-Xbox pads get mapped.
+hid_mappings_file = "gamecontrollerdb.txt"
+# Ignore small stick drift around the centre (percent).
+left_stick_deadzone_percentage = 8.0
+right_stick_deadzone_percentage = 8.0
+
+# --- Keyboard (emulated pad) -------------------------------------------------
+# Set mnk_mode = false if a controller is your only input.
+mnk_mode = true
+# Racing layout: W/Up = gas, S/Down = brake, A/D or Left/Right = steer.
+keybind_right_trigger = "W,Up"
+keybind_left_trigger = "S,Down"
+keybind_lstick_left = "A,Left"
+keybind_lstick_right = "D,Right"
+keybind_lstick_up = ""
+keybind_lstick_down = ""
+# Camera / look (right stick) moved off the arrow keys.
+keybind_rstick_up = "I"
+keybind_rstick_down = "K"
+keybind_rstick_left = "J"
+keybind_rstick_right = "L"
+# Menus: Enter/Space = A, Backspace/Esc = B, Tab = Back, X/Return = Start.
+keybind_a = "Space,Return"
+keybind_b = "Backspace,Escape"
+keybind_x = "R"
+keybind_y = "T"
+keybind_start = "X,P"
+keybind_back = "Tab"
+# Shoulders: Q/E (e.g. look back / change camera depending on game binding).
+keybind_left_shoulder = "Q"
+keybind_right_shoulder = "E"

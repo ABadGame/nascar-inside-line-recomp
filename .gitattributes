@@ -1,0 +1,7 @@
+* text=auto
+# Patches are applied with `git apply` - keep them byte-exact.
+*.patch -text
+*.sh text eol=lf
+*.py text eol=lf
+*.ps1 text eol=crlf
+*.bat text eol=crlf

@@ -1,0 +1,42 @@
+# ---------------------------------------------------------------------------
+# NEVER COMMIT GAME CONTENT. Everything below is either the game's own files or
+# derived from the game's code, which belongs to its publisher. Each user
+# builds it locally from their own disc with setup.ps1.
+# ---------------------------------------------------------------------------
+/game/
+/game_disabled/
+/update/
+/work/
+*.iso
+*.xex
+*.xexp
+*.bin
+*.bik
+*.AR
+
+# C++ generated from the game's code by `rexglue codegen`
+/nascar/generated/*/
+/nascar/generated/*.bounds.txt
+!/nascar/generated/rexglue.cmake
+
+# Build output (contains the compiled game code)
+/nascar/out/
+/nascar/bin/
+/tools/xexdump/*.exe
+/tools/xexdump/*.obj
+*.exe
+*.dll
+*.pdb
+*.lib
+
+# Logs and scratch
+*.log
+*.out
+*.png
+
+# Leftovers from the earlier XenonRecomp attempt (superseded by ReXGlue)
+/tools/XenonRecomp/
+/tools/gen_config.sh
+/config/
+/ppc/
+/nascar/nascar_switch_tables.toml

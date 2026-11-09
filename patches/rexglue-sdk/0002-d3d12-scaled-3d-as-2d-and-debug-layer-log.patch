@@ -1,0 +1,47 @@
+diff --git a/src/graphics/d3d12/texture_cache.cpp b/src/graphics/d3d12/texture_cache.cpp
+index 2be0e8e..55e5f0d 100644
+--- a/src/graphics/d3d12/texture_cache.cpp
++++ b/src/graphics/d3d12/texture_cache.cpp
+@@ -1995,6 +1995,13 @@ ID3D12Resource* D3D12TextureCache::D3D12Texture::GetOrCreate3DAs2DResource(
+   desc.Alignment = 0;
+   desc.Width = key().GetWidth();
+   desc.Height = key().GetHeight();
++  // The wrapper keeps the parent key (scaled_resolve included), so its data is
++  // loaded at the draw resolution scale - size it like CreateTexture does, or
++  // the upload copy overruns the resource and D3D12 removes the device.
++  if (key().scaled_resolve) {
++    desc.Width *= d3d12_cache.draw_resolution_scale_x();
++    desc.Height *= d3d12_cache.draw_resolution_scale_y();
++  }
+   desc.DepthOrArraySize = 1;
+   desc.MipLevels = 1;
+   desc.Format = d3d12_cache.GetDXGIResourceFormat(key());
+diff --git a/src/ui/d3d12/d3d12_provider.cpp b/src/ui/d3d12/d3d12_provider.cpp
+index bf8252b..9217899 100644
+--- a/src/ui/d3d12/d3d12_provider.cpp
++++ b/src/ui/d3d12/d3d12_provider.cpp
+@@ -344,6 +344,24 @@ bool D3D12Provider::Initialize() {
+     d3d12_info_queue_filter.DenyList.NumIDs = UINT(rex::countof(d3d12_info_queue_denied_messages));
+     d3d12_info_queue_filter.DenyList.pIDList = d3d12_info_queue_denied_messages;
+     d3d12_info_queue->PushStorageFilter(&d3d12_info_queue_filter);
++    // Forward debug-layer warnings/errors to the log (otherwise they only reach
++    // an attached debugger's output window).
++    {
++      ID3D12InfoQueue1* d3d12_info_queue1;
++      if (SUCCEEDED(d3d12_info_queue->QueryInterface(IID_PPV_ARGS(&d3d12_info_queue1)))) {
++        DWORD callback_cookie = 0;
++        d3d12_info_queue1->RegisterMessageCallback(
++            [](D3D12_MESSAGE_CATEGORY category, D3D12_MESSAGE_SEVERITY severity,
++               D3D12_MESSAGE_ID id, LPCSTR description, void*) {
++              if (severity <= D3D12_MESSAGE_SEVERITY_WARNING) {
++                REXLOG_ERROR("D3D12 debug layer [sev {} cat {} id {}]: {}", int(severity),
++                             int(category), int(id), description ? description : "");
++              }
++            },
++            D3D12_MESSAGE_CALLBACK_FLAG_NONE, nullptr, &callback_cookie);
++        d3d12_info_queue1->Release();
++      }
++    }
+     if (REXCVAR_GET(d3d12_break_on_error)) {
+       d3d12_info_queue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
+       d3d12_info_queue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
