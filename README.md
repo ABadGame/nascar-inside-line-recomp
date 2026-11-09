@@ -134,5 +134,7 @@ AMD FidelityFX; SDL_GameControllerDB. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_N
 
 ## License
 
-This project's own files are under the [BSD 3-Clause License](LICENSE). The game itself
-is not included and is not covered by it.
+This project's own files (scripts, function fixups, project configuration and application
+code) are under the [BSD 3-Clause License](LICENSE). The game itself is not included, and
+neither it nor anything generated from it is covered by that license. Third-party
+components are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
